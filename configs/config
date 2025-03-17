@@ -1,0 +1,20 @@
+[global_config]
+[keybindings]
+  copy = <Primary>c
+  paste = <Primary>v
+[profiles]
+  [[default]]
+    background_darkness = 0.83
+    background_type = transparent
+    cursor_color = "#aaaaaa"
+    foreground_color = "#00ff00"
+    scrollback_infinite = True
+[layouts]
+  [[default]]
+    [[[window0]]]
+      type = Window
+      parent = ""
+    [[[child1]]]
+      type = Terminal
+      parent = window0
+[plugins]
