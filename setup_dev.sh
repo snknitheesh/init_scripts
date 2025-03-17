@@ -51,6 +51,7 @@ curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/i
 
 source ~/.bashrc
 sudo apt-get install pre-commit -y
+sudo /bin/sh -c 'wget https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly && chmod +x /usr/local/bin/earthly && /usr/local/bin/earthly bootstrap --with-autocomplete'
 
 echo "ssh-ID"
 cat ~/.ssh/id_ed25519.pub
