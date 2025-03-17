@@ -44,4 +44,6 @@ echo "testing docker install"
 docker run hello-world
 echo "you may need to restart your machine"
 
+sudo apt-get update
+sudo apt-get upgrade -y
 nvidia-smi
