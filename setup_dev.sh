@@ -50,8 +50,8 @@ source "$HOME/.cargo/env"
 curl https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash
 
 source ~/.bashrc
+sudo apt-get install pre-commit -y
 
 echo "ssh-ID"
 cat ~/.ssh/id_ed25519.pub
-
 echo "Installed all developer settings. Please run setup_host.sh to install docker and nvidia"
