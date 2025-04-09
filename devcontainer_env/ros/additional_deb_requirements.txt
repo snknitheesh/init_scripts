@@ -1,0 +1,7 @@
+git
+libeigen3-dev
+libopencv-dev
+libboost-all-dev
+libyaml-cpp-dev
+libgstreamer1.0-dev
+libgstreamer-plugins-base1.0-dev

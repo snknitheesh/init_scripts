@@ -1,0 +1,12 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    container_name: ros
+    environment:
+      - ROS_DOMAIN_ID=12
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+    network_mode: host
+    command: bash -c "ls"
+

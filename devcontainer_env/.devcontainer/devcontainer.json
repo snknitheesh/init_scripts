@@ -1,0 +1,57 @@
+{
+    "name": "dev",
+    "remoteUser": "dev",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "..",
+        "args": {
+            "CR_PAT": "${localEnv:CR_PAT}"
+        }
+    },
+    "features": {
+		"ghcr.io/devcontainers/features/common-utils:latest": {},
+		"ghcr.io/gvatsal60/dev-container-features/pre-commit:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
+		"ghcr.io/blooop/devcontainer-features/user:latest": {}
+	},
+    "containerEnv": {
+        "CR_PAT": "${localEnv:CR_PAT}",
+        "ROS_DOMAIN_ID":"${localEnv:ROS_DOMAIN_ID}",
+        "HOME":"/home/dev"
+    },
+    "postCreateCommand": "/bin/bash .devcontainer/setup_env.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "charliermarsh.ruff",
+                "ms-vscode.cpptools-extension-pack",
+                "ms-iot.vscode-ros",
+                "smilerobotics.urdf",
+                "redhat.vscode-xml",
+                "tamasfe.even-better-toml",
+                "timonwong.shellcheck",
+                "yzhang.markdown-all-in-one"
+            ],
+            "settings": {
+                "files.associations": {
+                    "*.rviz": "yaml",
+                    "*.srdf": "xml",
+                    "*.urdf": "xml",
+                    "*.xacro": "xml"
+                }
+            }
+        }
+    },
+    "workspaceFolder": "/home/dev/ai_ws",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/home/dev/ai_ws,type=bind",
+    "runArgs": [
+        "--net=host",
+        "--gpus=all",
+        "--runtime=nvidia",
+        "--env=DISPLAY",
+        "--env=NVIDIA_DRIVER_CAPABILITIES=all",
+        "--env=NVIDIA_VISIBLE_DEVICES=all"
+        ],
+    "privileged": true
+  }
