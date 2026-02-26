@@ -520,7 +520,26 @@ install_stress_tools() {
 }
 
 # =============================================================================
-#  SECTION 19: System Update
+#  SECTION 19: Miniconda
+# =============================================================================
+
+install_miniconda() {
+    if command -v conda &>/dev/null; then
+        log_warn "Conda is already installed. Skipping."
+        return
+    fi
+    if ask_user "Install Miniconda?"; then
+        try_install "Miniconda" bash -c '
+            curl -fsSL -o /tmp/Miniconda3-latest-Linux-x86_64.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh &&
+            bash /tmp/Miniconda3-latest-Linux-x86_64.sh -b -p "$HOME/miniconda3" &&
+            rm -f /tmp/Miniconda3-latest-Linux-x86_64.sh &&
+            "$HOME/miniconda3/bin/conda" init bash
+        '
+    fi
+}
+
+# =============================================================================
+#  SECTION 20: System Update
 # =============================================================================
 
 system_update() {
@@ -604,6 +623,9 @@ main() {
 
     section "Stress Test Tools"
     install_stress_tools
+
+    section "Miniconda"
+    install_miniconda
 
     section "System Update"
     system_update
