@@ -517,7 +517,7 @@ increase_swap() {
 }
 
 # =============================================================================
-#  SECTION 18: Stress Test Tools (from stress_test.sh)
+#  SECTION 18: Stress Test Tools
 # =============================================================================
 
 install_stress_tools() {
