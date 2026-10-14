@@ -1,10 +1,12 @@
+#!/bin/bash
+
 # File manager
 sudo add-apt-repository ppa:christian-boxdoerfer/fsearch-stable -y
 sudo apt update
-sudo apt install fsearch
+sudo apt install -y fsearch
 
 # Disk space usage
-sudo apt install filelight
+sudo apt install -y filelight
 
 # Better file manager with tabs and inbuilt console
 sudo apt install -y dolphin konsole 

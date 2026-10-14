@@ -1,3 +1,7 @@
+#!/bin/bash
+
+# Install Cursor from Cursor.AppImage and icon.png in the current directory.
+
 installCursor() {
     if ! [ -f /opt/cursor.appimage ]; then
         echo "Installing Cursor AI IDE..."
