@@ -35,8 +35,12 @@ cp "$CONFIG" ~/.wezterm.lua
 
 # GNOME launches the terminal through xdg-terminal-exec; these lists pick it.
 echo "Making WezTerm the default terminal..."
+mkdir -p ~/.config
 echo "org.wezfurlong.wezterm.desktop" > ~/.config/xdg-terminals.list
-for desktop in ${XDG_CURRENT_DESKTOP//:/ }; do
+# Outside a desktop session (SSH, a console) there is no XDG_CURRENT_DESKTOP;
+# Ubuntu's desktop is the one to set up then.
+desktops="${XDG_CURRENT_DESKTOP:-ubuntu:GNOME}"
+for desktop in ${desktops//:/ }; do
     list=~/.config/${desktop}-xdg-terminals.list
     if [ -f "$list" ]; then
         { echo "org.wezfurlong.wezterm.desktop"; grep -vx "org.wezfurlong.wezterm.desktop" "$list" || true; } > "$list.new"
