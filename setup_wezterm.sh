@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Install WezTerm, set it up like the Terminator profile (configs/wezterm.lua)
-# and make it the default terminal, so Ctrl+Alt+T opens it.
+# and make it the default terminal, so Ctrl+Alt+T opens it. Run it again to
+# update WezTerm and re-apply the config.
 
 set -euo pipefail
 
@@ -9,7 +10,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG="$SCRIPT_DIR/configs/wezterm.lua"
 
 if command -v wezterm &>/dev/null; then
-    echo "WezTerm is already installed."
+    echo "Checking WezTerm for updates..."
+    sudo apt-get update
+    sudo apt-get install --only-upgrade -y wezterm
 else
     echo "Adding the WezTerm apt repository..."
     curl -fsSL https://apt.fury.io/wez/gpg.key | sudo gpg --yes --dearmor -o /usr/share/keyrings/wezterm-fury.gpg
