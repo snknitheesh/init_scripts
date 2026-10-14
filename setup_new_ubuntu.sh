@@ -138,6 +138,16 @@ install_terminator() {
     fi
 }
 
+install_wezterm() {
+    if command -v wezterm &>/dev/null && cmp -s "$SCRIPT_DIR/configs/wezterm.lua" ~/.wezterm.lua; then
+        log_warn "WezTerm is already installed and configured. Skipping."
+        return
+    fi
+    if ask_user "Install WezTerm (Terminator keys, green on black) and make it the default terminal?"; then
+        try_install "WezTerm" "$SCRIPT_DIR/setup_wezterm.sh"
+    fi
+}
+
 # =============================================================================
 #  SECTION 3: Git Setup (from setup_dev.sh)
 # =============================================================================
@@ -552,6 +562,17 @@ system_update() {
 #  MAIN
 # =============================================================================
 
+install_circle() {
+    if command -v zz &>/dev/null; then
+        log_warn "Circle is already installed. Update it with ./setup_circle.sh"
+        return
+    fi
+    # Interactive (it asks what this machine is), so it is not logged like the rest.
+    if ask_user "Install Circle (Claude agents across machines)?"; then
+        "$SCRIPT_DIR/setup_circle.sh" || log_error "Circle installation failed."
+    fi
+}
+
 main() {
     echo ""
     echo -e "${GREEN}=========================================================${NC}"
@@ -571,6 +592,7 @@ main() {
 
     section "Terminal & Shell"
     install_terminator
+    install_wezterm
 
     section "Git"
     install_git
@@ -626,6 +648,9 @@ main() {
 
     section "Miniconda"
     install_miniconda
+
+    section "Circle"
+    install_circle
 
     section "System Update"
     system_update
