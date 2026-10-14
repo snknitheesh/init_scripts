@@ -3,9 +3,9 @@
 # =============================================================================
 # setup_new_ubuntu.sh - Combined Ubuntu Setup Script
 # =============================================================================
-# Combines all individual setup scripts into one interactive installer.
-# Each installation prompts for yes/no, checks if already installed,
-# and handles errors gracefully.
+# One interactive installer for a new Ubuntu machine. Each installation
+# prompts for yes/no and handles errors gracefully; anything already
+# installed is checked for updates instead. The setup_*.sh scripts install single tools on their own.
 # =============================================================================
 
 set -o pipefail
@@ -52,6 +52,26 @@ try_install() {
     fi
 }
 
+# --- Updates for what is already installed ---
+# Runs an update command like try_install, without asking first.
+try_update() {
+    local name="$1"
+    shift
+    log_info "$name is installed. Checking for updates..."
+    if ( set -e; "$@" ) >> "$LOG_FILE" 2>&1; then
+        log_success "$name is up to date."
+    else
+        log_error "$name update failed. Check log: $LOG_FILE"
+    fi
+}
+
+# Upgrades installed apt packages; main() refreshes the package lists once.
+apt_update() {
+    local name="$1"
+    shift
+    try_update "$name" sudo apt-get install --only-upgrade -y "$@"
+}
+
 # --- Separator ---
 section() {
     echo ""
@@ -63,12 +83,16 @@ section() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # =============================================================================
-#  SECTION 1: IDE & Browsers (from setup_dev.sh)
+#  SECTION 1: IDE & Browsers
 # =============================================================================
 
 install_vscode() {
     if command -v code &>/dev/null; then
-        log_warn "VS Code is already installed. Skipping."
+        if snap list code &>/dev/null; then
+            try_update "VS Code" sudo snap refresh code
+        else
+            apt_update "VS Code" code
+        fi
         return
     fi
     if ask_user "Install VS Code?"; then
@@ -78,7 +102,7 @@ install_vscode() {
 
 install_chrome() {
     if command -v google-chrome &>/dev/null || command -v google-chrome-stable &>/dev/null; then
-        log_warn "Google Chrome is already installed. Skipping."
+        apt_update "Google Chrome" google-chrome-stable
         return
     fi
     if ask_user "Install Google Chrome?"; then
@@ -91,40 +115,22 @@ install_chrome() {
 }
 
 install_cursor() {
-    if [ -f /opt/cursor.appimage ]; then
-        log_warn "Cursor AI IDE is already installed. Skipping."
+    if dpkg -s cursor &>/dev/null; then
+        try_update "Cursor AI IDE" "$SCRIPT_DIR/setup_cursor.sh"
         return
     fi
-    if ask_user "Install Cursor AI IDE? (requires Cursor.AppImage and icon.png in $SCRIPT_DIR)"; then
-        if [ ! -f "$SCRIPT_DIR/Cursor.AppImage" ]; then
-            log_error "Cursor.AppImage not found in $SCRIPT_DIR. Skipping."
-            return
-        fi
-        try_install "Cursor AI IDE" bash -c "
-            sudo cp '$SCRIPT_DIR/Cursor.AppImage' /opt/cursor.appimage &&
-            sudo chmod +x /opt/cursor.appimage &&
-            if [ -f '$SCRIPT_DIR/icon.png' ]; then
-                sudo cp '$SCRIPT_DIR/icon.png' /opt/cursor.png
-            fi &&
-            sudo bash -c 'cat > /usr/share/applications/cursor.desktop' <<'DESKTOP'
-[Desktop Entry]
-Name=Cursor AI
-Exec=/opt/cursor.appimage --no-sandbox
-Icon=/opt/cursor.png
-Type=Application
-Categories=Development;
-DESKTOP
-        "
+    if ask_user "Install Cursor AI IDE?"; then
+        try_install "Cursor AI IDE" "$SCRIPT_DIR/setup_cursor.sh"
     fi
 }
 
 # =============================================================================
-#  SECTION 2: Terminal & Shell (from setup_dev.sh)
+#  SECTION 2: Terminal & Shell
 # =============================================================================
 
 install_terminator() {
     if command -v terminator &>/dev/null; then
-        log_warn "Terminator is already installed. Skipping."
+        apt_update "Terminator" terminator
         return
     fi
     if ask_user "Install Terminator terminal emulator?"; then
@@ -140,7 +146,7 @@ install_terminator() {
 
 install_wezterm() {
     if command -v wezterm &>/dev/null && cmp -s "$SCRIPT_DIR/configs/wezterm.lua" ~/.wezterm.lua; then
-        log_warn "WezTerm is already installed and configured. Skipping."
+        try_update "WezTerm" "$SCRIPT_DIR/setup_wezterm.sh"
         return
     fi
     if ask_user "Install WezTerm (Terminator keys, green on black) and make it the default terminal?"; then
@@ -149,12 +155,12 @@ install_wezterm() {
 }
 
 # =============================================================================
-#  SECTION 3: Git Setup (from setup_dev.sh)
+#  SECTION 3: Git Setup
 # =============================================================================
 
 install_git() {
     if command -v git &>/dev/null; then
-        log_warn "Git is already installed ($(git --version)). Skipping installation."
+        apt_update "Git" git
     else
         if ask_user "Install Git?"; then
             try_install "Git" bash -c "sudo apt update && sudo apt install -y git"
@@ -197,7 +203,7 @@ setup_git_config() {
 }
 
 # =============================================================================
-#  SECTION 4: APT Dev Tools (from setup_dev.sh)
+#  SECTION 4: APT Dev Tools
 # =============================================================================
 
 install_apt_dev_tools() {
@@ -211,7 +217,7 @@ install_apt_dev_tools() {
     done
 
     if [ ${#missing[@]} -eq 0 ]; then
-        log_warn "All APT dev tools are already installed. Skipping."
+        apt_update "APT dev tools" "${tools[@]}"
         return
     fi
 
@@ -222,14 +228,14 @@ install_apt_dev_tools() {
 }
 
 # =============================================================================
-#  SECTION 5: Snap Apps (from setup_dev.sh)
+#  SECTION 5: Snap Apps
 # =============================================================================
 
 install_snap_apps() {
     local apps=(slack spotify)
     for app in "${apps[@]}"; do
         if snap list "$app" &>/dev/null; then
-            log_warn "$app (snap) is already installed. Skipping."
+            try_update "$app (snap)" sudo snap refresh "$app"
         else
             if ask_user "Install $app (snap)?"; then
                 try_install "$app" bash -c "sudo snap install $app"
@@ -239,12 +245,12 @@ install_snap_apps() {
 }
 
 # =============================================================================
-#  SECTION 6: Pixi Package Manager (from setup_dev.sh)
+#  SECTION 6: Pixi Package Manager
 # =============================================================================
 
 install_pixi() {
     if command -v pixi &>/dev/null; then
-        log_warn "Pixi is already installed. Skipping."
+        try_update "Pixi" pixi self-update
         return
     fi
     if ask_user "Install Pixi package manager?"; then
@@ -261,7 +267,7 @@ install_pixi_tools() {
     if ask_user "Install pixi global tools (fzf, fd-find, ripgrep)?"; then
         for tool in "${tools[@]}"; do
             if pixi global list 2>/dev/null | grep -q "$tool"; then
-                log_warn "$tool (pixi) is already installed. Skipping."
+                try_update "$tool (pixi)" pixi global update "$tool"
             else
                 try_install "$tool (pixi)" bash -c "pixi global install $tool"
             fi
@@ -270,12 +276,12 @@ install_pixi_tools() {
 }
 
 # =============================================================================
-#  SECTION 7: uv Python Installer (from setup_dev.sh)
+#  SECTION 7: uv Python Installer
 # =============================================================================
 
 install_uv() {
     if command -v uv &>/dev/null; then
-        log_warn "uv is already installed. Skipping."
+        try_update "uv" uv self update
         return
     fi
     if ask_user "Install uv (Python package installer)?"; then
@@ -284,7 +290,7 @@ install_uv() {
 }
 
 # =============================================================================
-#  SECTION 8: Rocker Tools (from setup_dev.sh)
+#  SECTION 8: Rocker Tools
 # =============================================================================
 
 install_rocker_tools() {
@@ -296,7 +302,7 @@ install_rocker_tools() {
     if ask_user "Install rocker tools (rocker, rockerc, rockervsc) via uv?"; then
         for tool in "${tools[@]}"; do
             if uv tool list 2>/dev/null | grep -q "$tool"; then
-                log_warn "$tool is already installed. Skipping."
+                try_update "$tool" uv tool upgrade "$tool"
             else
                 try_install "$tool" bash -c "uv tool install $tool"
             fi
@@ -305,12 +311,12 @@ install_rocker_tools() {
 }
 
 # =============================================================================
-#  SECTION 9: Rust & Cargo (from setup_dev.sh)
+#  SECTION 9: Rust & Cargo
 # =============================================================================
 
 install_rust() {
     if command -v rustc &>/dev/null; then
-        log_warn "Rust is already installed ($(rustc --version)). Skipping."
+        try_update "Rust" rustup update
         return
     fi
     if ask_user "Install Rust and Cargo?"; then
@@ -324,12 +330,13 @@ install_rust() {
 }
 
 # =============================================================================
-#  SECTION 10: lazydocker (from setup_dev.sh)
+#  SECTION 10: lazydocker
 # =============================================================================
 
 install_lazydocker() {
     if command -v lazydocker &>/dev/null; then
-        log_warn "lazydocker is already installed. Skipping."
+        # Its installer replaces the binary with the latest release.
+        try_update "lazydocker" bash -c "curl -fsSL https://raw.githubusercontent.com/jesseduffield/lazydocker/master/scripts/install_update_linux.sh | bash"
         return
     fi
     if ask_user "Install lazydocker (Docker TUI)?"; then
@@ -339,12 +346,12 @@ install_lazydocker() {
 }
 
 # =============================================================================
-#  SECTION 11: pre-commit (from setup_dev.sh)
+#  SECTION 11: pre-commit
 # =============================================================================
 
 install_precommit() {
     if command -v pre-commit &>/dev/null; then
-        log_warn "pre-commit is already installed. Skipping."
+        apt_update "pre-commit" pre-commit
         return
     fi
     if ask_user "Install pre-commit?"; then
@@ -353,12 +360,19 @@ install_precommit() {
 }
 
 # =============================================================================
-#  SECTION 12: Earthly (from setup_dev.sh)
+#  SECTION 12: Earthly
 # =============================================================================
 
 install_earthly() {
     if command -v earthly &>/dev/null; then
-        log_warn "Earthly is already installed. Skipping."
+        local latest
+        latest=$(curl -fsSI https://github.com/earthly/earthly/releases/latest | awk 'tolower($1) == "location:" {print $2}' | tr -d '\r' | sed 's#.*/##')
+        if earthly --version 2>/dev/null | grep -q " ${latest} "; then
+            log_success "Earthly $latest is the latest version."
+        else
+            try_update "Earthly" sudo wget -q https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64 -O /usr/local/bin/earthly
+            sudo chmod +x /usr/local/bin/earthly
+        fi
         return
     fi
     if ask_user "Install Earthly (build automation)?"; then
@@ -375,12 +389,12 @@ install_earthly() {
 }
 
 # =============================================================================
-#  SECTION 13: Docker (from setup_host.sh)
+#  SECTION 13: Docker
 # =============================================================================
 
 install_docker() {
     if command -v docker &>/dev/null; then
-        log_warn "Docker is already installed ($(docker --version)). Skipping."
+        apt_update "Docker" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
         return
     fi
     if ask_user "Install Docker Engine?"; then
@@ -412,12 +426,12 @@ install_docker() {
 }
 
 # =============================================================================
-#  SECTION 14: NVIDIA Container Toolkit (from setup_host.sh)
+#  SECTION 14: NVIDIA Container Toolkit
 # =============================================================================
 
 install_nvidia_docker() {
     if dpkg -s nvidia-container-toolkit &>/dev/null; then
-        log_warn "NVIDIA Container Toolkit is already installed. Skipping."
+        apt_update "NVIDIA Container Toolkit" nvidia-container-toolkit
         return
     fi
     if ask_user "Install NVIDIA Docker / Container Toolkit?"; then
@@ -441,7 +455,7 @@ install_nvidia_docker() {
 
 install_discord() {
     if command -v discord &>/dev/null || dpkg -s discord &>/dev/null; then
-        log_warn "Discord is already installed. Skipping."
+        try_update "Discord" "$SCRIPT_DIR/setup_discord.sh"
         return
     fi
     if ask_user "Install Discord?"; then
@@ -459,7 +473,7 @@ install_discord() {
 
 install_fsearch() {
     if command -v fsearch &>/dev/null; then
-        log_warn "FSearch is already installed. Skipping."
+        apt_update "FSearch" fsearch
         return
     fi
     if ask_user "Install FSearch (fast file search)?"; then
@@ -473,7 +487,7 @@ install_fsearch() {
 
 install_filelight() {
     if command -v filelight &>/dev/null; then
-        log_warn "Filelight is already installed. Skipping."
+        apt_update "Filelight" filelight
         return
     fi
     if ask_user "Install Filelight (disk usage visualizer)?"; then
@@ -483,7 +497,7 @@ install_filelight() {
 
 install_dolphin() {
     if command -v dolphin &>/dev/null; then
-        log_warn "Dolphin file manager is already installed. Skipping."
+        apt_update "Dolphin & Konsole" dolphin konsole
         return
     fi
     if ask_user "Install Dolphin file manager & Konsole?"; then
@@ -522,7 +536,7 @@ increase_swap() {
 
 install_stress_tools() {
     if command -v stress-ng &>/dev/null; then
-        log_warn "stress-ng is already installed. Skipping."
+        apt_update "stress-ng" stress-ng
         return
     fi
     if ask_user "Install stress-ng (CPU/RAM stress testing)?"; then
@@ -536,7 +550,7 @@ install_stress_tools() {
 
 install_miniconda() {
     if command -v conda &>/dev/null; then
-        log_warn "Conda is already installed. Skipping."
+        try_update "Conda" conda update -n base -y conda
         return
     fi
     if ask_user "Install Miniconda?"; then
@@ -565,7 +579,7 @@ system_update() {
 
 install_zerotier() {
     if command -v zerotier-cli &>/dev/null; then
-        log_warn "ZeroTier is already installed. Join a network with ./setup_zerotier.sh <network-id>"
+        apt_update "ZeroTier" zerotier-one
         return
     fi
     # Interactive (asks for the network ID), so it is not logged like the rest.
@@ -576,7 +590,8 @@ install_zerotier() {
 
 install_circle() {
     if command -v zz &>/dev/null; then
-        log_warn "Circle is already installed. Update it with ./setup_circle.sh"
+        log_info "Circle is installed. Checking for updates..."
+        "$SCRIPT_DIR/setup_circle.sh" || log_error "Circle update failed."
         return
     fi
     # Interactive (it asks what this machine is), so it is not logged like the rest.
@@ -596,6 +611,11 @@ main() {
 
     # Ensure sudo is available for the session
     sudo -v
+
+    # Fresh package lists, so the update checks below see the newest versions.
+    log_info "Refreshing package lists..."
+    # shellcheck disable=SC2024  # the log is ours; only apt needs root
+    sudo apt-get update >> "$LOG_FILE" 2>&1 || log_warn "apt-get update failed; update checks may be stale."
 
     section "IDE & Browsers"
     install_vscode
