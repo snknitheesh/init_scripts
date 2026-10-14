@@ -6,9 +6,15 @@
 # services and pairs the dashboard. Arguments go straight to the bootstrap:
 #
 #   ./setup_circle.sh                                         # asks what this machine is
-#   ./setup_circle.sh --role laptop --hub zozo@10.160.17.97   # a laptop for the existing hub
+#   ./setup_circle.sh --role laptop --hub <user>@<hub-ip>     # a laptop for an existing hub
 #   ./setup_circle.sh --role agent                            # a device that runs sessions
-#   ./setup_circle.sh --role all --bind 10.160.17.97:7443     # hub + agent + dashboard
+#   ./setup_circle.sh --role all --bind <hub-ip>:7443         # hub + agent + dashboard
+#
+# <hub-ip> is the hub's ZeroTier address. With no arguments the bootstrap asks
+# for everything it needs, so the examples are only shortcuts.
+#
+# Run it again with no arguments to update: it pulls and rebuilds whatever
+# this machine already runs (hub, agent, dashboard).
 #
 # The repo is private: this machine's SSH key must be added to GitHub first.
 # Laptops and devices reach the hub over ZeroTier: run ./setup_zerotier.sh first.
@@ -36,6 +42,27 @@ if [ -d "$DIR/.git" ]; then
 else
     echo "Cloning Circle into $DIR..."
     git clone "$REPO" "$DIR"
+fi
+
+# Already installed and nothing asked for: rebuild what this machine runs.
+roles=()
+[ -f ~/.config/circle/hub/hub.toml ] && roles+=(hub)
+[ -f ~/.config/systemd/user/agentd-circle.service ] && roles+=(agent)
+[ -x ~/.local/bin/zz ] && roles+=(laptop)
+if [ $# -eq 0 ] && [ ${#roles[@]} -gt 0 ]; then
+    echo "Circle is installed here as: ${roles[*]}. Rebuilding with the latest code..."
+    if [[ " ${roles[*]} " == *" agent "* ]] && systemctl --user is-active --quiet agentd-circle; then
+        read -rp "Updating the agent restarts it and stops running Claude sessions. Continue? [y/N]: " answer
+        if ! [[ "$answer" =~ ^[Yy] ]]; then
+            echo "Skipped the update. Run this again when the sessions are idle."
+            exit 0
+        fi
+    fi
+    for role in "${roles[@]}"; do
+        "$DIR/scripts/install.sh" --role "$role"
+    done
+    echo "Circle is up to date."
+    exit 0
 fi
 
 # The bootstrap reports what it installed and what to do next.
