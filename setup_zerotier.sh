@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Install ZeroTier and join a network.
+# Install ZeroTier and join a network. Run it again to update ZeroTier.
 #
 #   ./setup_zerotier.sh                 # asks for the network ID (blank skips joining)
 #   ./setup_zerotier.sh <network-id>    # the 16-character ID from ZeroTier Central
@@ -13,12 +13,21 @@ set -euo pipefail
 NETWORK="${1:-}"
 
 if command -v zerotier-cli &>/dev/null; then
-    echo "ZeroTier is already installed ($(zerotier-cli -v))."
+    echo "Checking ZeroTier for updates..."
+    sudo apt-get update
+    sudo apt-get install --only-upgrade -y zerotier-one
 else
     echo "Installing ZeroTier..."
     curl -fsSL https://install.zerotier.com | sudo bash
 fi
 sudo systemctl enable --now zerotier-one
+
+# Already on a network and none named: this run was an update.
+if [ -z "$NETWORK" ] && sudo zerotier-cli listnetworks | grep -q ' OK '; then
+    sudo zerotier-cli listnetworks
+    echo "ZeroTier setup complete."
+    exit 0
+fi
 
 if [ -z "$NETWORK" ]; then
     read -rp "ZeroTier network ID to join (blank to skip): " NETWORK
