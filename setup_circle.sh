@@ -11,6 +11,7 @@
 #   ./setup_circle.sh --role all --bind 10.160.17.97:7443     # hub + agent + dashboard
 #
 # The repo is private: this machine's SSH key must be added to GitHub first.
+# Laptops and devices reach the hub over ZeroTier: run ./setup_zerotier.sh first.
 
 set -euo pipefail
 
