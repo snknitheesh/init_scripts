@@ -428,7 +428,7 @@ install_nvidia_docker() {
                 sed "s#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g" | \
                 sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list > /dev/null
             sudo apt update
-            sudo apt install -y nvidia-docker2 nvidia-container-toolkit
+            sudo apt install -y nvidia-container-toolkit
             sudo nvidia-ctk runtime configure --runtime=docker
             sudo systemctl restart docker
         '
@@ -509,7 +509,8 @@ increase_swap() {
             sudo fallocate -l $swap_size /swapfile &&
             sudo chmod 600 /swapfile &&
             sudo mkswap /swapfile &&
-            sudo swapon /swapfile
+            sudo swapon /swapfile &&
+            { grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null; }
         "
         swapon --show
     fi
@@ -561,6 +562,17 @@ system_update() {
 # =============================================================================
 #  MAIN
 # =============================================================================
+
+install_zerotier() {
+    if command -v zerotier-cli &>/dev/null; then
+        log_warn "ZeroTier is already installed. Join a network with ./setup_zerotier.sh <network-id>"
+        return
+    fi
+    # Interactive (asks for the network ID), so it is not logged like the rest.
+    if ask_user "Install ZeroTier and join a network?"; then
+        "$SCRIPT_DIR/setup_zerotier.sh" || log_error "ZeroTier setup failed."
+    fi
+}
 
 install_circle() {
     if command -v zz &>/dev/null; then
@@ -648,6 +660,9 @@ main() {
 
     section "Miniconda"
     install_miniconda
+
+    section "ZeroTier"
+    install_zerotier
 
     section "Circle"
     install_circle
