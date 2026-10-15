@@ -9,21 +9,25 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG="$SCRIPT_DIR/configs/wezterm.lua"
 
-if command -v wezterm &>/dev/null; then
-    echo "Checking WezTerm for updates..."
-    sudo apt-get update
-    sudo apt-get install --only-upgrade -y wezterm
-else
+if [ ! -f /etc/apt/sources.list.d/wezterm.list ]; then
     echo "Adding the WezTerm apt repository..."
     curl -fsSL https://apt.fury.io/wez/gpg.key | sudo gpg --yes --dearmor -o /usr/share/keyrings/wezterm-fury.gpg
     echo 'deb [signed-by=/usr/share/keyrings/wezterm-fury.gpg] https://apt.fury.io/wez/ * *' \
         | sudo tee /etc/apt/sources.list.d/wezterm.list >/dev/null
     sudo chmod 644 /usr/share/keyrings/wezterm-fury.gpg
-
-    echo "Installing WezTerm..."
-    sudo apt-get update
-    sudo apt-get install -y wezterm
 fi
+
+# The nightly build: the last stable release (20240203) crashes on GNOME
+# Wayland with current NVIDIA drivers. The two packages conflict, so drop the
+# stable one first.
+if dpkg -s wezterm &>/dev/null; then
+    echo "Removing the stable WezTerm release..."
+    sudo apt-get remove -y wezterm
+fi
+
+echo "Installing or updating WezTerm nightly..."
+sudo apt-get update
+sudo apt-get install -y wezterm-nightly
 
 echo "Installing the config to ~/.wezterm.lua..."
 if [ -f ~/.wezterm.lua ] && ! cmp -s "$CONFIG" ~/.wezterm.lua; then

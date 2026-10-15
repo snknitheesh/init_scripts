@@ -3,6 +3,13 @@ local wezterm = require 'wezterm'
 local act = wezterm.action
 local config = wezterm.config_builder()
 
+-- Native Wayland renders crisp at fractional scaling. The WebGpu (Vulkan)
+-- renderer fails to import dmabufs on NVIDIA under GNOME, so use OpenGL.
+config.enable_wayland = true
+config.front_end = 'OpenGL'
+-- Match the 120 Hz panel instead of the 60 fps default.
+config.max_fps = 120
+
 -- System font, green on black, Terminator's Tango palette.
 config.font = wezterm.font 'Ubuntu Sans Mono'
 config.font_size = 11.0
@@ -86,6 +93,23 @@ config.keys = {
   { key = 'Space', mods = 'CTRL|SHIFT', action = act.DisableDefaultAssignment },
   { key = 'C', mods = 'CTRL|SHIFT', action = act.DisableDefaultAssignment },
   { key = 'V', mods = 'CTRL|SHIFT', action = act.DisableDefaultAssignment },
+}
+
+-- Mouse wheel scrolls three lines per notch instead of the default jump.
+-- alt_screen = false leaves full-screen apps (vim, less, htop) unchanged.
+config.mouse_bindings = {
+  {
+    event = { Down = { streak = 1, button = { WheelUp = 1 } } },
+    mods = 'NONE',
+    alt_screen = false,
+    action = act.ScrollByLine(-3),
+  },
+  {
+    event = { Down = { streak = 1, button = { WheelDown = 1 } } },
+    mods = 'NONE',
+    alt_screen = false,
+    action = act.ScrollByLine(3),
+  },
 }
 
 return config
